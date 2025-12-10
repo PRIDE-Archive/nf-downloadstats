@@ -17,6 +17,10 @@ class ParquetWriter:
         pa.field('completed', pa.string(), metadata={'description': 'Check if the file download was completed'}),
         pa.field('country', pa.string(), metadata={'description': 'Country of the file downloaded'}),
         pa.field('method', pa.string(), metadata={'description': 'Download method such as FTP/Aspera/Globus'}),
+        pa.field('timestamp', pa.string(), metadata={'description': 'Original timestamp string from the log file'}),
+        pa.field('geoip_region_name', pa.string(), metadata={'description': 'GeoIP region name (e.g., state, province)'}),
+        pa.field('geoip_city_name', pa.string(), metadata={'description': 'GeoIP city name'}),
+        pa.field('geo_location', pa.string(), metadata={'description': 'Geographic location coordinates (latitude,longitude)'}),
     ])
 
     COMPRESSION = 'snappy'

@@ -28,3 +28,4 @@ work/
 runStat.sh
 params.config
 scripts/run_stat.sh
+scripts/run_stat_local.sh

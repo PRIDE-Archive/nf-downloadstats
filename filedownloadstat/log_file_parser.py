@@ -10,6 +10,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="dask.dataframe
 class LogFileParser:
     """
     Class to parse the log file into parquet format
+    eg: 2024-01-01T02:26:59.000Z\tebea3f4b11d3388b6da48148eb3a39a577bdc4bf\t179163579\t/pride/data/archive/2023/03/PXD034241/20210205_QExHFX3_RSLC10_Feng_Heckmann_EXT_onbead_dig_30_per_sample_turbo_nobio_S3_5.raw\tOUT\t03dbae9a96db63fa62487cd3c134d05230858127\tPartial\tChina\tShaanxi\tXi'an\t34.3287,109.0337\thttp\tpublic
     """
 
     DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
@@ -121,6 +122,10 @@ class LogFileParser:
                         "completed": row[6].lower().strip(),  # Completion Status (e.g., Complete or Incomplete)
                         "country": row[7],  # Country
                         "method": row[11],  # Method (e.g., ftp, aspera)
+                        "timestamp": row[0].strip(),  # Original timestamp string
+                        "geoip_region_name": self.clean_geoip_value(row[8]) if row[8] else "",  # GeoIP region name (e.g., Shaanxi)
+                        "geoip_city_name": self.clean_geoip_value(row[9]) if row[9] else "",  # GeoIP city name (e.g., Xi'an)
+                        "geo_location": row[10].strip() if row[10] else "",  # Geo location coordinates (e.g., 34.3287,109.0337)
                     }
                 except IndexError as e:
                     print(f"Error processing line {line_no} with row {row}: {e}")
@@ -143,3 +148,21 @@ class LogFileParser:
         if '.' in timestamp:
             timestamp = timestamp[:26] + 'Z'  # Trim to microseconds and re-add 'Z'
         return timestamp.rstrip('Z')  # Remove 'Z' for parsing
+
+    @staticmethod
+    def clean_geoip_value(value):
+        """
+        Cleans geoip values by filtering out placeholder strings.
+        Handles cases like {geoip_region_name}, %{geoip_city_name}, etc.
+        :param value: Raw geoip value string
+        :return: Cleaned value or empty string if it's a placeholder
+        """
+        if not value:
+            return ""
+        value = value.strip()
+        # Filter out placeholder patterns like {geoip_region_name}, %{geoip_city_name}, etc.
+        if value.startswith('{') and value.endswith('}'):
+            return ""  # Placeholder pattern like {geoip_region_name}
+        if value.startswith('%{') and value.endswith('}'):
+            return ""  # Placeholder pattern like %{geoip_city_name}
+        return value

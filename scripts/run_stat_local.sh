@@ -5,7 +5,7 @@ source .env
 set +a  # Stop automatically exporting variables
 
 ##### VARIABLES
-DATA_ROOT_DIR=$LOGS_DESTINATION_ROOT #"/path/to/data/transfer_logs_privacy_ready"
+DATA_ROOT_DIR=/Users/hewapathirana/Desktop/transfer_logs_privacy_ready_3 #$LOGS_DESTINATION_ROOT #"/path/to/data/transfer_logs_privacy_ready"
 API_BASE_URL=""
 API_ENDPOINT_FILE_DOWNLOADS_PER_PROJECT=""
 API_ENDPOINT_FILE_DOWNLOADS_PER_FILE=""

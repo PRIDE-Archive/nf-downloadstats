@@ -175,7 +175,7 @@ process run_file_download_stat {
     val output_parquet
 
     output:
-    path "file_download_stat.html"  // Output the visualizations as an HTML report
+    path "file_download_stat.html", emit: html_report  // Output the visualizations as an HTML report
 
     script:
     """
@@ -186,6 +186,25 @@ process run_file_download_stat {
         --baseurl ${params.resource_base_url} \
         --report_copy_filepath ${params.report_copy_filepath} \
         --skipped_years "${params.skipped_years.join(',')}"
+    """
+}
+
+process push_to_slack {
+
+    label 'error_retry'
+
+    input:
+    path report_file  // The HTML report file
+
+    output:
+    path "slack_push_status.txt"  // Status of the Slack push
+
+    script:
+    """
+    python3 ${workflow.projectDir}/filedownloadstat/slack_pusher.py \
+        --input-file ${report_file} \
+        --webhook-url "${params.slack_webhook_url}" \
+        --title "${params.slack_title}" > slack_push_status.txt 2>&1
     """
 }
 
@@ -324,6 +343,9 @@ workflow {
 
     // Step 4: Generate Statistics for file downloads
     run_file_download_stat(merge_parquet_files.out.output_parquet)
+
+    // Step 4.5: Push report to Slack
+    push_to_slack(run_file_download_stat.out.html_report)
 
     // Step 5: Update project level downloads in MongoDB
      if (!params.disable_db_update) {

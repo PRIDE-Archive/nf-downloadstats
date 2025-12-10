@@ -15,7 +15,7 @@ deploy:
     - mkdir $DEPLOY_DIR
 
     # Substitute environment variables
-    - envsubst < .params.config > params.config
+    - envsubst '${WORK_PATH},${SLACK_REPORT_URL},${SLACK_TITLE}' < .params.config > params.config
     - envsubst '${PIPELINE_BASE_DIR},${LOG_FOLDER},${DATA_ROOT_DIR},${API_ENDPOINT_FILE_DOWNLOADS_PER_PROJECT},${API_ENDPOINT_FILE_DOWNLOADS_PER_FILE},${API_ENDPOINT_HEADER}' < scripts/.run_stat.sh > scripts/run_stat.sh
     - envsubst '${CONDA_INIT},${LOGS_SOURCE_ROOT},${LOGS_DESTINATION_ROOT},${PROFILE},${RESOURCE}' < .run_file_download_stats.sh > run_file_download_stats.sh
 
