@@ -8,23 +8,32 @@ to Slack via webhook URL.
 
 import json
 import sys
+import logging
 import requests
 from pathlib import Path
 from typing import Optional
 
+from exceptions import (
+    SlackPushError,
+    ValidationError
+)
+from interfaces import ISlackPusher
 
-class SlackPusher:
+logger = logging.getLogger(__name__)
+
+
+class SlackPusher(ISlackPusher):
     """Class for pushing reports to Slack."""
     
-    def __init__(self, webhook_url: str):
+    def __init__(self, webhook_url: str) -> None:
         """Initialize the Slack pusher.
         
         Args:
             webhook_url: Slack webhook URL
         """
         if not webhook_url:
-            raise ValueError("webhook_url must be provided")
-        self.webhook_url = webhook_url
+            raise ValidationError("webhook_url must be provided", field="webhook_url")
+        self.webhook_url: str = webhook_url
     
     def push_report(self, report_file: str, title: Optional[str] = None) -> bool:
         """Push consolidated report to Slack.
@@ -66,17 +75,42 @@ class SlackPusher:
             response = requests.post(self.webhook_url, json=payload, timeout=30)
             
             if response.status_code == 200:
-                print(f"✅ Successfully pushed report to Slack via webhook")
+                logger.info("Successfully pushed report to Slack", extra={"report_file": report_file, "title": message_title})
                 return True
             else:
-                print(f"❌ Failed to push to Slack: {response.status_code} {response.text}", file=sys.stderr)
+                error = SlackPushError(
+                    f"Failed to push to Slack: HTTP {response.status_code}",
+                    report_file=report_file,
+                    status_code=response.status_code,
+                    response_text=response.text
+                )
+                logger.error("Failed to push to Slack", extra={"report_file": report_file, "status_code": response.status_code, "response": response.text})
+                # Return False instead of raising - allow workflow to continue
                 return False
                 
         except FileNotFoundError:
-            print(f"Error: {report_file} not found", file=sys.stderr)
+            error = SlackPushError(
+                f"Report file not found: {report_file}",
+                report_file=report_file
+            )
+            logger.error("Report file not found", extra={"report_file": report_file})
+            # Return False instead of raising - allow workflow to continue
+            return False
+        except requests.RequestException as e:
+            error = SlackPushError(
+                f"Network error pushing to Slack: {str(e)}",
+                report_file=report_file,
+                original_error=str(e)
+            )
+            logger.error("Network error pushing to Slack", extra={"report_file": report_file, "error": str(e)}, exc_info=True)
             return False
         except Exception as e:
-            print(f"Error pushing to Slack: {e}", file=sys.stderr)
+            error = SlackPushError(
+                f"Unexpected error pushing to Slack: {str(e)}",
+                report_file=report_file,
+                original_error=str(e)
+            )
+            logger.error("Error pushing to Slack", extra={"report_file": report_file, "error": str(e)}, exc_info=True)
             return False
 
 

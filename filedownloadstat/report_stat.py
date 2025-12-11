@@ -1,14 +1,18 @@
+import logging
 from pathlib import Path
+from typing import List, Optional
 
 from stat_types import ProjectStat, RegionalStat, TrendsStat, UserStat
 from report_util import Report
 import pandas as pd
 import dask.dataframe as dd
 
+logger = logging.getLogger(__name__)
+
 class ReportStat:
 
     @staticmethod
-    def project_stat(df: pd.DataFrame, baseurl: str):
+    def project_stat(df: pd.DataFrame, baseurl: str) -> None:
         # --------------- 1. yearly_downloads ---------------
         # Group data by year and method, count occurrences
         yearly_downloads = df.groupby(["year", "method"]).size().reset_index(name="count")
@@ -74,7 +78,7 @@ class ReportStat:
         ProjectStat.top_downloaded_projects(download_counts, baseurl)
 
     @staticmethod
-    def trends_stat(df: pd.DataFrame):
+    def trends_stat(df: pd.DataFrame) -> None:
         # Group data by date and count the occurrences
         # Group by date and method to sum the count of downloads per method per day
         # Group by 'date' and 'method' and count the occurrences of each combination
@@ -82,14 +86,14 @@ class ReportStat:
         TrendsStat.download_over_trends(daily_data)
 
     @staticmethod
-    def regional_stats(df: pd.DataFrame):
+    def regional_stats(df: pd.DataFrame) -> None:
         # Group data by country to get the count of downloads
         choropleth_data = df.groupby(['country', 'year']).size().reset_index(name='count')
         choropleth_data = choropleth_data.sort_values(by='year')
         RegionalStat.download_by_country(choropleth_data)
 
     @staticmethod
-    def user_stats(df: pd.DataFrame):
+    def user_stats(df: pd.DataFrame) -> None:
         # Calculate unique users per date
         user_data = df.groupby(['date', 'year', 'month'], as_index=False)['user'].nunique()
         user_data['date'] = pd.to_datetime(user_data['date'], unit='ms')  # Convert date to datetime
@@ -103,15 +107,23 @@ class ReportStat:
         UserStat.users_by_country(country_user_data)
 
     @staticmethod
-    def run_file_download_stat(file, output, report_template, baseurl: str, report_copy_filepath, skipped_years_list: list):
+    def run_file_download_stat(
+        file: str,
+        output: str,
+        report_template: str,
+        baseurl: str,
+        report_copy_filepath: Optional[str],
+        skipped_years_list: List[int]
+    ) -> None:
         """
         Run the log file statistics generation and save the visualizations in an HTML output file.
         """
-        print(f"Loading data from Parquet: {file}")
+        logger.info("Loading data from Parquet", extra={"file": file})
 
         df = dd.read_parquet(file)
-        print(df.head())
-        # df = dd.read_parquet(file, engine="pyarrow")  # Efficient lazy loading
+        df_computed = df.compute()
+        logger.debug("Parquet data preview", extra={"file": file, "row_count": len(df_computed)})
+        
         # Filter out rows where 'year' is in skipped_years_list
         df = df[~df["year"].isin(skipped_years_list)]
         df_pandas = df.compute()
@@ -126,10 +138,13 @@ class ReportStat:
 
         template_path = Path(__file__).resolve().parent.parent / "template" / report_template
 
-        print(f"Looking for template at: {template_path}")
+        logger.info("Looking for template", extra={"template_path": str(template_path)})
         Report.generate_report(template_path, output)
 
         if report_copy_filepath and Path(report_copy_filepath).is_dir():
             Report.copy_report(output, report_copy_filepath)
         else:
-            print("Warning! report_copy_filepath is not specified in config or path does not exists!")
+            logger.warning(
+                "report_copy_filepath not specified or path does not exist",
+                extra={"report_copy_filepath": report_copy_filepath}
+            )

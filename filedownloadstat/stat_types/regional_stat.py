@@ -1,4 +1,7 @@
+import logging
 import plotly.express as px
+
+logger = logging.getLogger(__name__)
 
 
 class RegionalStat:
@@ -29,9 +32,9 @@ class RegionalStat:
             if fig.layout.updatemenus[0].buttons and len(fig.layout.updatemenus[0].buttons) > 0:
                 fig.layout.updatemenus[0].buttons[-1].args[1]['frame']['redraw'] = True  # Force redraw
             else:
-                print("No buttons in updatemenus.")
+                logger.warning("No buttons in updatemenus")
         else:
-            print("No updatemenus present.")
+            logger.warning("No updatemenus present")
 
         fig.update_layout(
             geo=dict(

@@ -1,7 +1,7 @@
 import os
 import click
+from typing import Optional
 
-# from dask_manager import DaskManager
 from log_file_analyzer import LogFileAnalyzer
 from log_file_util import FileUtil
 from parquet_analyzer import ParquetAnalyzer
@@ -37,7 +37,7 @@ from report_stat import ReportStat
     required=True,
     type=str
 )
-def get_log_files(root_dir: str, output: str, protocols: str, public: str):
+def get_log_files(root_dir: str, output: str, protocols: str, public: str) -> str:
     protocol_list = protocols.split(",")
     public_list = public.split(",")
     fileutil = FileUtil()
@@ -87,7 +87,14 @@ def get_log_files(root_dir: str, output: str, protocols: str, public: str):
     required=True,
     type=str
 )
-def process_log_file(tsvfilepath, output_parquet, resource: str, complete: str, batch: int, accession_pattern: str):
+def process_log_file(
+    tsvfilepath: str,
+    output_parquet: str,
+    resource: str,
+    complete: str,
+    batch: int,
+    accession_pattern: str
+) -> None:
     resource_list = resource.split(",")
     completeness_list = complete.split(",")
     accession_pattern_list = accession_pattern.split(",")
@@ -111,7 +118,7 @@ def process_log_file(tsvfilepath, output_parquet, resource: str, complete: str, 
     required=True,
     type=str
 )
-def run_log_file_stat(file: str, output: str):
+def run_log_file_stat(file: str, output: str) -> None:
     log_file_stat = LogFileAnalyzer()
     log_file_stat.run_log_file_stat(file, output)
 
@@ -124,12 +131,17 @@ def run_log_file_stat(file: str, output: str):
     help="Single parquet file to read",
     required=True,
 )
-def read_parquet_files(file: str):
+def read_parquet_files(file: str) -> None:
+    from exceptions import ParquetReadError
+    
     if os.path.exists(file):
         parquet_reader = ParquetReader(file)
         parquet_reader.read(file)
     else:
-        raise FileNotFoundError(file)
+        raise ParquetReadError(
+            f"Parquet file not found: {file}",
+            parquet_path=file
+        )
 
 
 @click.command(
@@ -148,13 +160,9 @@ def read_parquet_files(file: str):
               "--profile",
               required=True,
               )
-def merge_parquet_files(input_dir, output_parquet, profile):
-    # dask_manager = DaskManager(profile=profile, nodes=5, max_jobs=20)
+def merge_parquet_files(input_dir: str, output_parquet: str, profile: str) -> None:
     stat_parquet = ParquetAnalyzer()
-    # try:
-    result = stat_parquet.merge_parquet_files(input_dir, output_parquet)
-    # finally:
-        # dask_manager.close()  # Ensure the Dask cluster shuts down properly
+    stat_parquet.merge_parquet_files(input_dir, output_parquet)
 
 
 @click.command(
@@ -190,28 +198,23 @@ def merge_parquet_files(input_dir, output_parquet, profile):
               required=True,
               )
 def analyze_parquet_files(
-                    output_parquet,
-                    project_level_download_counts,
-                    file_level_download_counts,
-                    project_level_yearly_download_counts,
-                    project_level_top_download_counts,
-                    all_data,
-                    profile):
-    # Initialize Dask cluster
-    # dask_manager = DaskManager(profile=profile, nodes=5, max_jobs=20)
-    # stat_parquet = ParquetAnalyzer(dask_manager)
+    output_parquet: str,
+    project_level_download_counts: str,
+    file_level_download_counts: str,
+    project_level_yearly_download_counts: str,
+    project_level_top_download_counts: str,
+    all_data: str,
+    profile: str
+) -> None:
     stat_parquet = ParquetAnalyzer()
-    # try:
-    result = stat_parquet.analyze_parquet_files(
-                                              output_parquet,
-                                              project_level_download_counts,
-                                              file_level_download_counts,
-                                              project_level_yearly_download_counts,
-                                              project_level_top_download_counts,
-                                              all_data)
-    # finally:
-    #     dask_manager.close()  # Ensure the Dask cluster shuts down properly
-    # print(result)
+    stat_parquet.analyze_parquet_files(
+        output_parquet,
+        project_level_download_counts,
+        file_level_download_counts,
+        project_level_yearly_download_counts,
+        project_level_top_download_counts,
+        all_data
+    )
 
 
 @click.command("run_file_download_stat",
@@ -258,8 +261,14 @@ def analyze_parquet_files(
     required=False,
     type=str
 )
-def run_file_download_stat(file: str, output: str, report_template: str, baseurl: str, report_copy_filepath,
-                           skipped_years: str):
+def run_file_download_stat(
+    file: str,
+    output: str,
+    report_template: str,
+    baseurl: str,
+    report_copy_filepath: str,
+    skipped_years: Optional[str]
+) -> None:
     # Convert the comma-separated string to a list of integers
     skipped_years_list = list(map(int, skipped_years.split(","))) if skipped_years else []
 

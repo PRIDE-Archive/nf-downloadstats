@@ -17,7 +17,7 @@ class TestLogParser(unittest.TestCase):
         cls.parser = LogFileParser("",
             resource_list=cls.config["resource_identifiers"],
             completeness_list=cls.config["completeness"],
-            accession_pattern= "^PXD\\d{6}$" #cls.config["accession_pattern_list"]
+            accession_pattern_list=["^PXD\\d{6}$"]  # Fixed parameter name
         )
     def test_valid_row(self):
         """Test parsing a correctly formatted row."""

@@ -1,8 +1,18 @@
+import logging
+from typing import List, Dict, Any, Optional
 import pyarrow.parquet as pq
 import pyarrow as pa
 
+from exceptions import (
+    ParquetWriteError,
+    ValidationError
+)
+from interfaces import IParquetWriter
 
-class ParquetWriter:
+logger = logging.getLogger(__name__)
+
+
+class ParquetWriter(IParquetWriter):
     """
     Write parquet file
     """
@@ -25,7 +35,7 @@ class ParquetWriter:
 
     COMPRESSION = 'snappy'
 
-    def __init__(self, parquet_path: str, write_strategy: str = 'all', batch_size: int = 10000):
+    def __init__(self, parquet_path: str, write_strategy: str = 'all', batch_size: int = 10000) -> None:
         """
         Initialize ParquetWriter.
 
@@ -34,16 +44,16 @@ class ParquetWriter:
         :param batch_size: Batch size for batch-wise writing.
         """
         if not parquet_path:
-            raise ValueError("parquet_path is required")
+            raise ValidationError("parquet_path is required", field="parquet_path")
 
-        self.parquet_path = parquet_path
-        self.write_strategy = write_strategy.lower()
-        self.batch_size = batch_size
-        self.parquet_writer = None
-        self.batch_data = []
+        self.parquet_path: str = parquet_path
+        self.write_strategy: str = write_strategy.lower()
+        self.batch_size: int = batch_size
+        self.parquet_writer: Optional[pq.ParquetWriter] = None
+        self.batch_data: List[Dict[str, Any]] = []
 
     # METHOD 1
-    def write_all(self, data):
+    def write_all(self, data: List[Dict[str, Any]]) -> bool:
         """
         Write parquet file with schema
         :param data: array of data to write
@@ -61,12 +71,25 @@ class ParquetWriter:
                 )
                 return True
             return False
+        except (pa.ArrowInvalid, IOError, OSError) as e:
+            error = ParquetWriteError(
+                f"Failed to write Parquet file: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during write_all", extra={"parquet_path": self.parquet_path, "error": str(e)}, exc_info=True)
+            raise error
         except Exception as e:
-            print(f"Error during write_all: {e}")
-            raise
+            error = ParquetWriteError(
+                f"Unexpected error writing Parquet file: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during write_all", extra={"parquet_path": self.parquet_path, "error": str(e)}, exc_info=True)
+            raise error
 
     # METHOD 2
-    def write_batch(self, data):
+    def write_batch(self, data: List[Dict[str, Any]]) -> bool:
         """
         Write data in batches to a Parquet file.
 
@@ -84,11 +107,24 @@ class ParquetWriter:
                 data_written = True
             return data_written
 
+        except (pa.ArrowInvalid, IOError, OSError) as e:
+            error = ParquetWriteError(
+                f"Failed to write batch to Parquet file: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during write_batch", extra={"parquet_path": self.parquet_path, "error": str(e)}, exc_info=True)
+            raise error
         except Exception as e:
-            print(f"Error during write_batch: {e}")
-            raise
+            error = ParquetWriteError(
+                f"Unexpected error writing batch: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during write_batch", extra={"parquet_path": self.parquet_path, "error": str(e)}, exc_info=True)
+            raise error
 
-    def _write_current_batch(self):
+    def _write_current_batch(self) -> None:
         """
         Write the current batch to the Parquet file.
         """
@@ -107,11 +143,25 @@ class ParquetWriter:
             # Remove written data from the batch
             self.batch_data = self.batch_data[self.batch_size:]
 
+        except (pa.ArrowInvalid, IOError, OSError) as e:
+            error = ParquetWriteError(
+                f"Failed to write current batch: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                batch_size=len(self.batch_data[:self.batch_size]),
+                original_error=str(e)
+            )
+            logger.error("Error during _write_current_batch", extra={"parquet_path": self.parquet_path, "batch_size": len(self.batch_data[:self.batch_size]), "error": str(e)}, exc_info=True)
+            raise error
         except Exception as e:
-            print(f"Error during _write_current_batch: {e}")
-            raise
+            error = ParquetWriteError(
+                f"Unexpected error writing current batch: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during _write_current_batch", extra={"parquet_path": self.parquet_path, "batch_size": len(self.batch_data[:self.batch_size]), "error": str(e)}, exc_info=True)
+            raise error
 
-    def finalize(self):
+    def finalize(self) -> bool:
         """
         Finalize the writing process.
         Writes any remaining data and closes the writer.
@@ -127,6 +177,19 @@ class ParquetWriter:
             if self.parquet_writer:
                 self.parquet_writer.close()
             return data_written
+        except (pa.ArrowInvalid, IOError, OSError) as e:
+            error = ParquetWriteError(
+                f"Failed to finalize Parquet file: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during finalize", extra={"parquet_path": self.parquet_path, "error": str(e)}, exc_info=True)
+            raise error
         except Exception as e:
-            print(f"Error during finalize: {e}")
-            raise
+            error = ParquetWriteError(
+                f"Unexpected error finalizing Parquet file: {self.parquet_path}",
+                parquet_path=self.parquet_path,
+                original_error=str(e)
+            )
+            logger.error("Error during finalize", extra={"parquet_path": self.parquet_path, "error": str(e)}, exc_info=True)
+            raise error

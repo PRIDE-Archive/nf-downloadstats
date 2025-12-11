@@ -1,11 +1,15 @@
+import logging
+from typing import Optional
 import plotly.express as px
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class LogFileAnalyzer:
 
     @staticmethod
-    def log_file_size_distribution(file):
+    def log_file_size_distribution(file: str) -> None:
         """
         Visualize how file sizes are distributed, identify outliers, and determine the average or median file size.
         """
@@ -39,11 +43,11 @@ class LogFileAnalyzer:
             labels={"size": "File Size (Bytes)", "protocol": "Protocol Type"},
         )
         fig.write_html("file_size_violin_by_protocol.html")
-        print("Violin plot written to file_size_violin_by_protocol.html")
+        logger.info("Violin plot written", extra={"output_file": "file_size_violin_by_protocol.html"})
 
 
     @staticmethod
-    def run_log_file_stat(file, output):
+    def run_log_file_stat(file: str, output: str) -> None:
         """
         Run the log file statistics generation and save the visualizations in an HTML output file.
         """
