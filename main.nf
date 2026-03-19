@@ -15,6 +15,10 @@ params.output_file='parsed_data.parquet'
 params.log_file=''
 params.api_endpoint_file_download_per_project=''
 params.protocols=''
+params.enable_bot_classification=false
+params.bot_classification_method='rules'
+params.bot_contamination=0.15
+params.bot_provider='ebi'
 
 
 log.info """\
@@ -47,6 +51,10 @@ Skipped Years       : ${params.skipped_years}
 Accession Pattern   : ${params.accession_pattern}
 chunk size for file : ${params.chunk_size}
 Disable DB Update   : ${params.disable_db_update}
+Bot Classification  : ${params.enable_bot_classification}
+Bot Method          : ${params.bot_classification_method}
+Bot Contamination   : ${params.bot_contamination}
+Bot Provider        : ${params.bot_provider}
 api_endpoint_file_downloads_per_project : ${params.api_endpoint_file_downloads_per_project}
 api_endpoint_file_downloads_per_file    : ${params.api_endpoint_file_downloads_per_file}
 
@@ -140,6 +148,32 @@ process merge_parquet_files {
     """
 }
 
+process classify_bot_downloads {
+
+    label 'process_medium'
+    label 'error_retry_medium'
+
+    input:
+    val output_parquet
+
+    output:
+    path("annotated_parquet"), emit: annotated_parquet
+    path("bot_classification_reports"), emit: bot_reports
+
+    script:
+    """
+    mkdir -p bot_classification_reports
+
+    python3 ${workflow.projectDir}/filedownloadstat/file_download_stat.py  classify_bots \
+        --input_parquet ${output_parquet} \
+        --output_dir "bot_classification_reports" \
+        --output_parquet "annotated_parquet" \
+        --method ${params.bot_classification_method} \
+        --contamination ${params.bot_contamination} \
+        --provider ${params.bot_provider}
+    """
+}
+
 process analyze_parquet_files {
 
     label 'error_retry_max'
@@ -200,11 +234,15 @@ process push_to_slack {
     path "slack_push_status.txt"  // Status of the Slack push
 
     script:
+    def botToken = params.slack_bot_token ? "--bot-token \"${params.slack_bot_token}\"" : ""
+    def channel = params.slack_channel ? "--channel \"${params.slack_channel}\"" : ""
     """
     python3 ${workflow.projectDir}/filedownloadstat/slack_pusher.py \
         --input-file ${report_file} \
         --webhook-url "${params.slack_webhook_url}" \
-        --title "${params.slack_title}" > slack_push_status.txt 2>&1
+        --title "${params.slack_title}" \
+        ${botToken} \
+        ${channel} > slack_push_status.txt 2>&1
     """
 }
 
@@ -338,11 +376,21 @@ workflow {
 
     merge_parquet_files(parquet_file_list)
 
+    // Step 2.5: Optionally classify downloads into bots, hubs, and organic users
+    if (params.enable_bot_classification) {
+        classify_bot_downloads(merge_parquet_files.out.output_parquet)
+    }
+
+    // Use annotated parquet if bot classification is enabled, otherwise use merged parquet
+    def parquet_for_analysis = params.enable_bot_classification
+        ? classify_bot_downloads.out.annotated_parquet
+        : merge_parquet_files.out.output_parquet
+
     // Step 3: Analyze Parquet files
-    analyze_parquet_files(merge_parquet_files.out.output_parquet)
+    analyze_parquet_files(parquet_for_analysis)
 
     // Step 4: Generate Statistics for file downloads
-    run_file_download_stat(merge_parquet_files.out.output_parquet)
+    run_file_download_stat(parquet_for_analysis)
 
     // Step 4.5: Push report to Slack
     push_to_slack(run_file_download_stat.out.html_report)

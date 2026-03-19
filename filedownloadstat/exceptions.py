@@ -122,10 +122,20 @@ class ConfigurationError(FileDownloadStatError):
 
 class ValidationError(FileDownloadStatError):
     """Raised when data validation fails."""
-    
+
     def __init__(self, message: str, field: str = None, value: any = None, **kwargs):
         super().__init__(message)
         self.field = field
         self.value = value
+        self.context = kwargs
+
+
+class BotClassificationError(FileDownloadStatError):
+    """Raised when bot classification fails."""
+
+    def __init__(self, message: str, input_path: str = None, method: str = None, **kwargs):
+        super().__init__(message)
+        self.input_path = input_path
+        self.method = method
         self.context = kwargs
 
