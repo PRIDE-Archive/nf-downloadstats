@@ -2,7 +2,6 @@ import os
 import click
 from typing import Optional
 
-from bot_classifier import BotClassifier
 from log_file_analyzer import LogFileAnalyzer
 from log_file_util import FileUtil
 from parquet_analyzer import ParquetAnalyzer
@@ -332,6 +331,8 @@ def classify_bots(
     contamination: float,
     provider: str,
 ) -> None:
+    from bot_classifier import BotClassifier
+
     classifier = BotClassifier(
         method=method,
         contamination=contamination,
