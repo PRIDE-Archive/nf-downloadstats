@@ -25,13 +25,6 @@ skipped_years:
 resource_base_url: 'https://www.ebi.ac.uk/pride/archive/projects/'
 report_copy_filepath:
 
-############# Bot Classification (DeepLogBot) #############
-# Classify downloads into bots, institutional hubs, and organic users
-enable_bot_classification: false
-bot_classification_method: "rules"   # "rules" (fast, rule-based) or "deep" (ML-based, requires PyTorch)
-bot_contamination: 0.15              # Expected fraction of bot traffic (0.0-1.0)
-bot_provider: "ebi"                  # Data provider for feature extraction
-
 ############# Push to a Database(e.g MongoDB) #############
 disable_db_update: true
 log_file_batch_size: 1000

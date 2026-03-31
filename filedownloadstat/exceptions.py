@@ -130,12 +130,4 @@ class ValidationError(FileDownloadStatError):
         self.context = kwargs
 
 
-class BotClassificationError(FileDownloadStatError):
-    """Raised when bot classification fails."""
-
-    def __init__(self, message: str, input_path: str = None, method: str = None, **kwargs):
-        super().__init__(message)
-        self.input_path = input_path
-        self.method = method
-        self.context = kwargs
 

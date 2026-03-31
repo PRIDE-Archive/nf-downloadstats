@@ -277,70 +277,6 @@ def run_file_download_stat(
                                               skipped_years_list)
 
 
-@click.command(
-    "classify_bots",
-    short_help="Classify downloads into bots, hubs, and organic users using DeepLogBot",
-)
-@click.option(
-    "-i",
-    "--input_parquet",
-    help="Path to the merged parquet file",
-    required=True,
-)
-@click.option(
-    "-o",
-    "--output_dir",
-    help="Directory for classification reports and outputs",
-    required=True,
-)
-@click.option(
-    "-a",
-    "--output_parquet",
-    help="Path for the annotated parquet file with bot/hub/organic labels",
-    required=True,
-)
-@click.option(
-    "-m",
-    "--method",
-    help="Classification method: 'rules' (fast, rule-based) or 'deep' (ML-based)",
-    required=False,
-    default="rules",
-    type=click.Choice(["rules", "deep"]),
-)
-@click.option(
-    "-c",
-    "--contamination",
-    help="Expected fraction of bot traffic (0.0-1.0)",
-    required=False,
-    default=0.15,
-    type=float,
-)
-@click.option(
-    "-p",
-    "--provider",
-    help="Data provider identifier for feature extraction",
-    required=False,
-    default="ebi",
-    type=str,
-)
-def classify_bots(
-    input_parquet: str,
-    output_dir: str,
-    output_parquet: str,
-    method: str,
-    contamination: float,
-    provider: str,
-) -> None:
-    from bot_classifier import BotClassifier
-
-    classifier = BotClassifier(
-        method=method,
-        contamination=contamination,
-        provider=provider,
-    )
-    classifier.classify(input_parquet, output_dir, output_parquet)
-
-
 @click.group()
 def main():
     pass
@@ -354,7 +290,6 @@ main.add_command(process_log_file)
 main.add_command(merge_parquet_files)
 main.add_command(analyze_parquet_files)
 main.add_command(run_file_download_stat)
-main.add_command(classify_bots)
 
 # =============== Additional Features ===============
 

@@ -9,20 +9,18 @@ protocols:
 public_private:
   - public
 resource_identifiers:
-  - /biostudies/fire/
-  - /biostudies/nfs/
+  - /pub/databases/metabolights/studies/
 accession_pattern:
-  - 'S-BIAD\\d+'  # Example: '/biostudies/fire/S-BIAD/199/S-BIAD1199/Files/Endometrial_Images/IC-EN-01425-01.geojson'
-  - 'E-MTAB-\\d+' # Example: '/biostudies/fire/E-MTAB-/813/E-MTAB-6813/Files/5431sTS.Macaque.Liver.1dpb.Male.sorted.bam'
+  - 'MTBLS\\d{5}'
 completeness:
   - complete
 ############# Statistics Reports #############
 
-report_template: "biostudies_report.html"
+report_template: "pride_report.html"
 skipped_years:
   - 2020
   - 2025
-resource_base_url: 'https://www.ebi.ac.uk/bioimage-archive/'
+resource_base_url: 'https://www.ebi.ac.uk/metabolights/editor/'
 report_copy_filepath:
 
 ############# Push to a Database(e.g MongoDB) #############
