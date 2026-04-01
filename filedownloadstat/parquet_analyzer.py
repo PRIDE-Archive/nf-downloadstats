@@ -54,7 +54,9 @@ class ParquetAnalyzer(IParquetAnalyzer):
         # Combine results
         self.persist_project_level_download_counts(pd.concat(project_counts, ignore_index=True),
                                                    project_level_download_counts)
-        self.persist_file_level_download_counts(pd.concat(file_counts, ignore_index=True), file_level_download_counts)
+        file_df = pd.concat(file_counts, ignore_index=True)
+        file_df = file_df.groupby(["accession", "filename"])["count"].sum().reset_index()
+        self.persist_file_level_download_counts(file_df, file_level_download_counts)
         self.persist_project_level_yearly_download_counts(pd.concat(yearly_counts, ignore_index=True),
                                                           project_level_yearly_download_counts)
         self.persist_top_download_counts(output_parquet, project_level_top_download_counts, top_counts=100)
@@ -115,11 +117,21 @@ class ParquetAnalyzer(IParquetAnalyzer):
         file_iter = pq.ParquetFile(input_parquet).iter_batches(batch_size=self.batch_size)
 
         record_count = 0
+        first_batch = True
         with open(output_file, "w") as f:
+            f.write("[")
             for batch in file_iter:
                 df = batch.to_pandas()
-                f.write(df.to_json(orient="records", lines=True))  # **Append JSON records batch-wise**
+                json_str = df.to_json(orient="records")
+                # Strip the outer [ ] from each batch's JSON array
+                json_str = json_str[1:-1]
+                if json_str:
+                    if not first_batch:
+                        f.write(",")
+                    f.write(json_str)
+                    first_batch = False
                 record_count += len(df)
+            f.write("]")
         logger.info("All data saved", extra={"output_file": output_file, "record_count": record_count})
 
     def get_all_parquet_files(self, file_list_path: str) -> List[str]:

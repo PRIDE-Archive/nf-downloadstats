@@ -25,6 +25,12 @@ skipped_years:
 resource_base_url: 'https://www.ebi.ac.uk/bioimage-archive/'
 report_copy_filepath:
 
+############# Bot Classification (DeepLogBot) #############
+enable_bot_classification: true
+bot_classification_method: "rules"
+bot_contamination: 0.15
+bot_provider: "ebi"
+
 ############# Push to a Database(e.g MongoDB) #############
 disable_db_update: true
 log_file_batch_size: 1000

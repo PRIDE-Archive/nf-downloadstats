@@ -15,6 +15,17 @@ params.output_file='parsed_data.parquet'
 params.log_file=''
 params.api_endpoint_file_download_per_project=''
 params.protocols=''
+params.enable_bot_classification=true
+params.bot_classification_method='rules'
+params.bot_contamination=0.15
+params.bot_provider='ebi'
+params.slack_webhook_url=''
+params.slack_bot_token=''
+params.slack_channel=''
+params.slack_title=''
+params.api_endpoint_file_downloads_per_project=''
+params.api_endpoint_file_downloads_per_file=''
+params.api_endpoint_header=''
 
 
 
@@ -48,6 +59,10 @@ Skipped Years       : ${params.skipped_years}
 Accession Pattern   : ${params.accession_pattern}
 chunk size for file : ${params.chunk_size}
 Disable DB Update   : ${params.disable_db_update}
+Bot Classification  : ${params.enable_bot_classification}
+Bot Method          : ${params.bot_classification_method}
+Bot Contamination   : ${params.bot_contamination}
+Bot Provider        : ${params.bot_provider}
 api_endpoint_file_downloads_per_project : ${params.api_endpoint_file_downloads_per_project}
 api_endpoint_file_downloads_per_file    : ${params.api_endpoint_file_downloads_per_file}
 
@@ -141,6 +156,29 @@ process merge_parquet_files {
     """
 }
 
+process classify_bot_downloads {
+
+    label 'process_medium'
+    label 'error_retry_medium'
+
+    input:
+    val output_parquet
+
+    output:
+    path("annotated_parquet"), emit: annotated_parquet
+
+    script:
+    """
+    python3 ${workflow.projectDir}/filedownloadstat/file_download_stat.py  classify_bots \
+        --input_parquet ${output_parquet} \
+        --output_dir "bot_classification_reports" \
+        --output_parquet "annotated_parquet" \
+        --method ${params.bot_classification_method} \
+        --contamination ${params.bot_contamination} \
+        --provider ${params.bot_provider}
+    """
+}
+
 process analyze_parquet_files {
 
     label 'error_retry_max'
@@ -179,6 +217,7 @@ process run_file_download_stat {
     path "file_download_stat.html", emit: html_report  // Output the visualizations as an HTML report
 
     script:
+    def botFlag = params.enable_bot_classification ? "--enable_bot_classification" : ""
     """
     python3 ${workflow.projectDir}/filedownloadstat/file_download_stat.py  run_file_download_stat \
         --file ${output_parquet} \
@@ -186,7 +225,8 @@ process run_file_download_stat {
         --report_template ${params.report_template} \
         --baseurl ${params.resource_base_url} \
         --report_copy_filepath ${params.report_copy_filepath} \
-        --skipped_years "${params.skipped_years.join(',')}"
+        --skipped_years "${params.skipped_years.join(',')}" \
+        ${botFlag}
     """
 }
 
@@ -343,11 +383,21 @@ workflow {
 
     merge_parquet_files(parquet_file_list)
 
-    // Step 3: Analyze Parquet files
-    analyze_parquet_files(merge_parquet_files.out.output_parquet)
+    // Step 2.5: Optionally classify downloads into bots, hubs, and organic users
+    if (params.enable_bot_classification) {
+        classify_bot_downloads(merge_parquet_files.out.output_parquet)
+    }
 
-    // Step 4: Generate Statistics for file downloads
-    run_file_download_stat(merge_parquet_files.out.output_parquet)
+    // Use annotated parquet if bot classification is enabled, otherwise use merged parquet
+    def parquet_for_analysis = params.enable_bot_classification
+        ? classify_bot_downloads.out.annotated_parquet
+        : merge_parquet_files.out.output_parquet
+
+    // Step 3: Analyze Parquet files
+    analyze_parquet_files(parquet_for_analysis)
+
+    // Step 4: Generate Statistics for file downloads (with bot stats if enabled)
+    run_file_download_stat(parquet_for_analysis)
 
     // Step 4.5: Push report to Slack
     push_to_slack(run_file_download_stat.out.html_report)

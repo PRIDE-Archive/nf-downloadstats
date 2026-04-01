@@ -21,3 +21,6 @@ dependencies:
       - pyyaml
       - scipy
       - panel
+      - click
+      - requests
+      - deeplogbot @ git+https://github.com/PRIDE-Archive/deeplogbot.git@main

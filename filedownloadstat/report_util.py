@@ -19,7 +19,7 @@ class Report(IReportGenerator):
             return f"<p>Missing content: {file_path}</p>"
 
     @staticmethod
-    def generate_report(template_path: Path, output: Path) -> None:
+    def generate_report(template_path: Path, output: Path, enable_bot_classification: bool = False) -> None:
 
         # Read the template HTML file
         with open(template_path, "r",
@@ -36,7 +36,7 @@ class Report(IReportGenerator):
         )
 
         trends_content = (
-            Report.read_html_file("download_over_treands.html")  # Correct the filename if needed
+            Report.read_html_file("download_over_trends.html")
         )
 
         maps_content = (
@@ -48,6 +48,14 @@ class Report(IReportGenerator):
                 Report.read_html_file("users_by_country.html")
         )
 
+        bot_content = ""
+        if enable_bot_classification:
+            bot_content = (
+                Report.read_html_file("classification_distribution.html") +
+                Report.read_html_file("classification_by_year.html") +
+                Report.read_html_file("organic_downloads_by_country.html")
+            )
+
         # Replace placeholders in template
         final_report = (
             template_content
@@ -55,6 +63,7 @@ class Report(IReportGenerator):
             .replace("{{trends_content}}", trends_content)
             .replace("{{maps_content}}", maps_content)
             .replace("{{user_content}}", user_content)
+            .replace("{{bot_content}}", bot_content)
         )
 
         # Write the final HTML report

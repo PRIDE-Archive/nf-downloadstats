@@ -17,4 +17,4 @@ class TrendsStat:
             title='File Downloads Over Time',  # Chart title
             labels={"date": "Date", "count": "Downloads", "method": "Method"}  # Axis labels
         )
-        fig.write_html("download_over_treands.html")
+        fig.write_html("download_over_trends.html")

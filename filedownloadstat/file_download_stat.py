@@ -1,4 +1,5 @@
 import os
+import re
 import click
 from typing import Optional
 
@@ -97,7 +98,7 @@ def process_log_file(
 ) -> None:
     resource_list = resource.split(",")
     completeness_list = complete.split(",")
-    accession_pattern_list = accession_pattern.split(",")
+    accession_pattern_list = re.split(r',(?![^{}]*\})', accession_pattern)
     fileutil = FileUtil()
     fileutil.process_log_file(tsvfilepath, output_parquet, resource_list, completeness_list, batch, accession_pattern_list)
 
@@ -261,20 +262,91 @@ def analyze_parquet_files(
     required=False,
     type=str
 )
+@click.option(
+    "--enable_bot_classification",
+    help="Enable bot/hub/organic classification charts in the report",
+    is_flag=True,
+    default=False,
+)
 def run_file_download_stat(
     file: str,
     output: str,
     report_template: str,
     baseurl: str,
     report_copy_filepath: str,
-    skipped_years: Optional[str]
+    skipped_years: Optional[str],
+    enable_bot_classification: bool
 ) -> None:
     # Convert the comma-separated string to a list of integers
     skipped_years_list = list(map(int, skipped_years.split(","))) if skipped_years else []
 
     file_download_stat = ReportStat()
     file_download_stat.run_file_download_stat(file, output, report_template, baseurl, report_copy_filepath,
-                                              skipped_years_list)
+                                              skipped_years_list, enable_bot_classification)
+
+
+@click.command(
+    "classify_bots",
+    short_help="Classify downloads into bots, hubs, and organic users using DeepLogBot",
+)
+@click.option(
+    "-i",
+    "--input_parquet",
+    help="Path to the merged parquet file",
+    required=True,
+)
+@click.option(
+    "-o",
+    "--output_dir",
+    help="Directory for classification reports and outputs",
+    required=True,
+)
+@click.option(
+    "-a",
+    "--output_parquet",
+    help="Path for the annotated parquet file with bot/hub/organic labels",
+    required=True,
+)
+@click.option(
+    "-m",
+    "--method",
+    help="Classification method: 'rules' (fast, rule-based) or 'deep' (ML-based)",
+    required=False,
+    default="rules",
+    type=click.Choice(["rules", "deep"]),
+)
+@click.option(
+    "-c",
+    "--contamination",
+    help="Expected fraction of bot traffic (0.0-1.0)",
+    required=False,
+    default=0.15,
+    type=float,
+)
+@click.option(
+    "-p",
+    "--provider",
+    help="Data provider identifier for feature extraction",
+    required=False,
+    default="ebi",
+    type=str,
+)
+def classify_bots(
+    input_parquet: str,
+    output_dir: str,
+    output_parquet: str,
+    method: str,
+    contamination: float,
+    provider: str,
+) -> None:
+    from bot_classifier import BotClassifier
+
+    classifier = BotClassifier(
+        method=method,
+        contamination=contamination,
+        provider=provider,
+    )
+    classifier.classify(input_parquet, output_dir, output_parquet)
 
 
 @click.group()
@@ -290,6 +362,7 @@ main.add_command(process_log_file)
 main.add_command(merge_parquet_files)
 main.add_command(analyze_parquet_files)
 main.add_command(run_file_download_stat)
+main.add_command(classify_bots)
 
 # =============== Additional Features ===============
 
