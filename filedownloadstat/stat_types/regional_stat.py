@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class RegionalStat:
 
     @staticmethod
-    def download_by_country(choropleth_data):
+    def download_by_country(choropleth_data: 'pd.DataFrame') -> None:
         """
          Visualize downloads geographically
         """

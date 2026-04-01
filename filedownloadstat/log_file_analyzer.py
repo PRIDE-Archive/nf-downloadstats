@@ -21,7 +21,7 @@ class LogFileAnalyzer:
         fig.write_html("file_size_distribution.html")
 
     @staticmethod
-    def plot_violin_for_protocols(file_list: str):
+    def plot_violin_for_protocols(file_list: str) -> None:
         """
         Create violin plots of file size distributions for each protocol without relying on column headers.
         """

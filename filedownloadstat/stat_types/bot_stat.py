@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class BotStat:
 
     @staticmethod
-    def classification_distribution(classification_counts):
+    def classification_distribution(classification_counts: 'pd.DataFrame') -> None:
         """
         Pie chart showing overall distribution of bot, hub, and organic downloads.
         """
@@ -29,7 +29,7 @@ class BotStat:
         fig.write_html("classification_distribution.html")
 
     @staticmethod
-    def classification_by_year(yearly_classification):
+    def classification_by_year(yearly_classification: 'pd.DataFrame') -> None:
         """
         Stacked bar chart showing classification breakdown per year.
         """
@@ -51,7 +51,7 @@ class BotStat:
         fig.write_html("classification_by_year.html")
 
     @staticmethod
-    def organic_downloads_by_country(country_organic):
+    def organic_downloads_by_country(country_organic: 'pd.DataFrame') -> None:
         """
         Bar chart of organic (genuine user) downloads by country.
         """

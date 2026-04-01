@@ -174,10 +174,27 @@ class ReportStat:
         elif enable_bot_classification:
             logger.warning("Bot classification enabled but is_bot/is_hub/is_organic columns not found in parquet")
 
+        # Compute summary statistics
+        total_downloads = len(df_pandas)
+        unique_projects = df_pandas['accession'].nunique()
+        unique_users = df_pandas['user'].nunique()
+        unique_countries = df_pandas['country'].nunique()
+        min_date = df_pandas['date'].min().strftime("%Y-%m-%d")
+        max_date = df_pandas['date'].max().strftime("%Y-%m-%d")
+        date_range = f"{min_date} to {max_date}"
+
         template_path = Path(__file__).resolve().parent.parent / "template" / report_template
 
         logger.info("Looking for template", extra={"template_path": str(template_path)})
-        Report.generate_report(template_path, output, enable_bot_classification=enable_bot_classification)
+        Report.generate_report(
+            template_path, output,
+            enable_bot_classification=enable_bot_classification,
+            total_downloads=total_downloads,
+            unique_projects=unique_projects,
+            unique_users=unique_users,
+            unique_countries=unique_countries,
+            date_range=date_range,
+        )
 
         if report_copy_filepath and Path(report_copy_filepath).is_dir():
             Report.copy_report(output, report_copy_filepath)

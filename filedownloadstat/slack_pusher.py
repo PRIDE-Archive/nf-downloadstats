@@ -6,7 +6,6 @@ This module contains functionality to push the consolidated summary report
 to Slack. HTML files are uploaded as file attachments, TSV files are sent as text.
 """
 
-import json
 import sys
 import logging
 import requests

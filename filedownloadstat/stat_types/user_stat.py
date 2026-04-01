@@ -7,7 +7,7 @@ class UserStat:
     """
 
     @staticmethod
-    def unique_users_over_time(user_data):
+    def unique_users_over_time(user_data: 'pd.DataFrame') -> None:
         fig = px.line(
             user_data,
             x='date',
@@ -19,7 +19,7 @@ class UserStat:
 
 
     @staticmethod
-    def users_by_country(country_user_data):
+    def users_by_country(country_user_data: 'pd.DataFrame') -> None:
         """
         Plot users by country with animation for each year
         """

@@ -7,7 +7,7 @@ class ProjectStat:
     """
 
     @staticmethod
-    def combined_line_chart(combined_data, unique_month_years):
+    def combined_line_chart(combined_data: 'pd.DataFrame', unique_month_years: list) -> None:
         """
         Highlight number of monthly downloads
         """
@@ -35,7 +35,7 @@ class ProjectStat:
         fig.write_html('combined_line_chart.html')
 
     @staticmethod
-    def yearly_download(yearly_downloads):
+    def yearly_download(yearly_downloads: 'pd.DataFrame') -> None:
         """
         Create a bar chart with year on X-axis, count on Y-axis, and method as color
         """
@@ -54,7 +54,7 @@ class ProjectStat:
         fig.write_html('yearly_download.html')
 
     @staticmethod
-    def cumulative_download(monthly_downloads):
+    def cumulative_download(monthly_downloads: 'pd.DataFrame') -> None:
         # Create line chart
         fig = px.line(
             monthly_downloads,
@@ -67,7 +67,7 @@ class ProjectStat:
         fig.write_html('cumulative_download.html')
 
     @staticmethod
-    def project_downloads_histogram_1(download_counts):
+    def project_downloads_histogram_1(download_counts: 'pd.DataFrame') -> None:
         """
         This will create a histogram where each bar represents how many projects fall into different download count ranges
         """
@@ -86,7 +86,7 @@ class ProjectStat:
         fig.write_html('project_downloads_histogram_1.html')
 
     @staticmethod
-    def top_downloaded_projects(df, baseurl: str):
+    def top_downloaded_projects(df: 'pd.DataFrame', baseurl: str) -> None:
         """
         This will create a horizontal bar chart with Top 10 Most Downloaded Projects
         """
@@ -109,29 +109,5 @@ class ProjectStat:
             labels={"download_count": "Number of Downloads", "accession_url": "Project Accession"},
             text="download_count"
         )
-
-        # Add dropdown menu for selecting Top N projects
-        # dropdown_buttons = [
-        #     {
-        #         "label": f"Top {n}",
-        #         "method": "update",
-        #         "args": [
-        #             {"x": [df.nlargest(n, "download_count")["download_count"]],
-        #              "y": [df.nlargest(n, "download_count")["accession_url"]],
-        #              "text": [df.nlargest(n, "download_count")["download_count"]]
-        #              },
-        #             {"title": f"Top {n} Downloaded Projects"}
-        #         ]
-        #     }
-        #     for n in top_n_options
-        # ]
-        #
-        # fig.update_layout(
-        #     updatemenus=[{
-        #         "buttons": dropdown_buttons,
-        #         "direction": "down",
-        #         "showactive": True,
-        #     }]
-        # )
 
         fig.write_html('top_downloaded_projects.html')

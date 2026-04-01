@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -19,12 +20,36 @@ class Report(IReportGenerator):
             return f"<p>Missing content: {file_path}</p>"
 
     @staticmethod
-    def generate_report(template_path: Path, output: Path, enable_bot_classification: bool = False) -> None:
+    def generate_report(template_path: Path, output: Path, enable_bot_classification: bool = False,
+                        total_downloads: int = 0, unique_projects: int = 0,
+                        unique_users: int = 0, unique_countries: int = 0,
+                        date_range: str = "") -> None:
 
         # Read the template HTML file
         with open(template_path, "r",
                   encoding="utf-8") as template_file:
             template_content = template_file.read()
+
+        # Build summary section
+        run_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+        summary_html = (
+            f'<table style="width:100%; border-collapse:collapse; margin:10px 0;">'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Report Generated</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{run_timestamp}</td></tr>'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Date Range</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{date_range}</td></tr>'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Total Downloads</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{total_downloads:,}</td></tr>'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Unique Projects</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{unique_projects:,}</td></tr>'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Unique Users</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{unique_users:,}</td></tr>'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Unique Countries</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{unique_countries:,}</td></tr>'
+            f'<tr><td style="padding:8px; border-bottom:1px solid #ddd;"><strong>Bot Classification</strong></td>'
+            f'<td style="padding:8px; border-bottom:1px solid #ddd;">{"Enabled" if enable_bot_classification else "Disabled"}</td></tr>'
+            f'</table>'
+        )
 
         # Read and assign content to placeholders
         project_level_content = (
@@ -62,6 +87,7 @@ class Report(IReportGenerator):
             .replace("{{project_level_content}}", project_level_content)
             .replace("{{trends_content}}", trends_content)
             .replace("{{maps_content}}", maps_content)
+            .replace("{{summary_content}}", summary_html)
             .replace("{{user_content}}", user_content)
             .replace("{{bot_content}}", bot_content)
         )

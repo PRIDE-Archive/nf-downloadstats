@@ -31,43 +31,59 @@ class ParquetAnalyzer(IParquetAnalyzer):
         project_level_top_download_counts: str,
         all_data: str
     ) -> None:
-        """Processes Parquet files in batches without using Dask."""
-        file_iter = pq.ParquetFile(output_parquet).iter_batches(batch_size=self.batch_size,
-                                                                columns=["accession", "filename", "year"])
+        """Processes Parquet files in a single pass with batch-wise aggregation and JSON export."""
+        parquet_file = pq.ParquetFile(output_parquet)
 
         project_counts = []
         file_counts = []
         yearly_counts = []
 
-        for batch in file_iter:
-            df = batch.to_pandas()
+        # Single pass: aggregate stats and write all_data JSON simultaneously
+        first_batch = True
+        all_data_record_count = 0
+        with open(all_data, "w") as all_data_f:
+            all_data_f.write("[")
+            for batch in parquet_file.iter_batches(batch_size=self.batch_size):
+                df = batch.to_pandas()
 
-            # Aggregate project-level counts
-            project_counts.append(df.groupby("accession")["filename"].count().reset_index(name="count"))
+                # Aggregate project-level counts
+                project_counts.append(df.groupby("accession").size().reset_index(name="count"))
 
-            # Aggregate file-level counts
-            file_counts.append(df.groupby(["accession", "filename"]).size().reset_index(name="count"))
+                # Aggregate file-level counts
+                file_counts.append(df.groupby(["accession", "filename"]).size().reset_index(name="count"))
 
-            # Aggregate yearly counts
-            yearly_counts.append(df.groupby(["accession", "year"]).size().reset_index(name="count"))
+                # Aggregate yearly counts
+                yearly_counts.append(df.groupby(["accession", "year"]).size().reset_index(name="count"))
 
-        # Combine results
-        self.persist_project_level_download_counts(pd.concat(project_counts, ignore_index=True),
-                                                   project_level_download_counts)
-        file_df = pd.concat(file_counts, ignore_index=True)
-        file_df = file_df.groupby(["accession", "filename"])["count"].sum().reset_index()
+                # Write all_data JSON incrementally
+                json_str = df.to_json(orient="records")
+                json_str = json_str[1:-1]  # Strip outer [ ]
+                if json_str:
+                    if not first_batch:
+                        all_data_f.write(",")
+                    all_data_f.write(json_str)
+                    first_batch = False
+                all_data_record_count += len(df)
+
+            all_data_f.write("]")
+        logger.info("All data saved", extra={"output_file": all_data, "record_count": all_data_record_count})
+
+        # Combine and re-aggregate across batches
+        project_df = pd.concat(project_counts, ignore_index=True).groupby("accession")["count"].sum().reset_index()
+        file_df = pd.concat(file_counts, ignore_index=True).groupby(["accession", "filename"])["count"].sum().reset_index()
+        yearly_df = pd.concat(yearly_counts, ignore_index=True).groupby(["accession", "year"])["count"].sum().reset_index()
+
+        # Persist results
+        self.persist_project_level_download_counts(project_df, project_level_download_counts)
         self.persist_file_level_download_counts(file_df, file_level_download_counts)
-        self.persist_project_level_yearly_download_counts(pd.concat(yearly_counts, ignore_index=True),
-                                                          project_level_yearly_download_counts)
-        self.persist_top_download_counts(output_parquet, project_level_top_download_counts, top_counts=100)
+        self.persist_project_level_yearly_download_counts(yearly_df, project_level_yearly_download_counts)
 
-        # Save full dataset incrementally
-        self.persist_all_data(output_parquet, all_data)
+        # Top downloads derived from already-computed project counts (no extra parquet read)
+        top_df = project_df.sort_values("count", ascending=False).head(100)
+        top_df.to_json(project_level_top_download_counts, orient="records", lines=False)
+        logger.info("Top download counts saved", extra={"output_file": project_level_top_download_counts, "top_count": len(top_df)})
 
     def persist_project_level_download_counts(self, df: pd.DataFrame, output_file: str) -> None:
-        # Ensure final total count per accession
-        df = df.groupby("accession")["count"].sum().reset_index()
-
         # Calculate percentiles
         df["percentile"] = (rankdata(df["count"], method="average") / len(df) * 100).astype(int)
 
@@ -80,12 +96,9 @@ class ParquetAnalyzer(IParquetAnalyzer):
         logger.info("File level download counts saved", extra={"output_file": output_file, "record_count": len(df)})
 
     def persist_project_level_yearly_download_counts(self, df: pd.DataFrame, output_file: str) -> None:
-        # Group by accession and year and sum the counts
-        grouped_df = df.groupby(["accession", "year"])["count"].sum().reset_index()
-
         # Nest yearly counts under each accession
         nested = (
-            grouped_df
+            df
             .groupby("accession")
             .apply(lambda x: {
                 "accession": x["accession"].iloc[0],
@@ -96,43 +109,6 @@ class ParquetAnalyzer(IParquetAnalyzer):
 
         pd.DataFrame(nested).to_json(output_file, orient="records", lines=False)
         logger.info("Project level yearly download counts saved", extra={"output_file": output_file, "record_count": len(nested)})
-
-    def persist_top_download_counts(self, input_parquet: str, output_file: str, top_counts: int = 100) -> None:
-        """Processes Parquet file batch-wise to determine top downloads."""
-        file_iter = pq.ParquetFile(input_parquet).iter_batches(batch_size=self.batch_size, columns=["accession"])
-        counts = {}
-
-        for batch in file_iter:
-            df = batch.to_pandas()
-            for acc in df["accession"]:
-                counts[acc] = counts.get(acc, 0) + 1
-
-        result = pd.DataFrame(list(counts.items()), columns=["accession", "count"])
-        top_count_dataset = result.sort_values("count", ascending=False).head(top_counts)
-        top_count_dataset.to_json(output_file, orient="records", lines=False)
-        logger.info("Top download counts saved", extra={"output_file": output_file, "top_count": len(top_count_dataset)})
-
-    def persist_all_data(self, input_parquet: str, output_file: str) -> None:
-        """Reads and saves all data batch-wise to avoid memory issues."""
-        file_iter = pq.ParquetFile(input_parquet).iter_batches(batch_size=self.batch_size)
-
-        record_count = 0
-        first_batch = True
-        with open(output_file, "w") as f:
-            f.write("[")
-            for batch in file_iter:
-                df = batch.to_pandas()
-                json_str = df.to_json(orient="records")
-                # Strip the outer [ ] from each batch's JSON array
-                json_str = json_str[1:-1]
-                if json_str:
-                    if not first_batch:
-                        f.write(",")
-                    f.write(json_str)
-                    first_batch = False
-                record_count += len(df)
-            f.write("]")
-        logger.info("All data saved", extra={"output_file": output_file, "record_count": record_count})
 
     def get_all_parquet_files(self, file_list_path: str) -> List[str]:
         """Reads file paths from a text file and validates them as Parquet files."""

@@ -161,7 +161,7 @@ class LogFileParser(ILogParser):
         return timestamp.rstrip('Z')  # Remove 'Z' for parsing
 
     @staticmethod
-    def clean_geoip_value(value):
+    def clean_geoip_value(value: str) -> str:
         """
         Cleans geoip values by filtering out placeholder strings.
         Handles cases like {geoip_region_name}, %{geoip_city_name}, etc.
