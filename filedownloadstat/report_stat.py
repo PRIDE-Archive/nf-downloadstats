@@ -149,7 +149,13 @@ class ReportStat:
         """
         logger.info("Loading data from Parquet", extra={"file": file})
 
-        df = dd.read_parquet(file)
+        # Only read the columns needed for reporting to reduce memory usage
+        report_columns = ['date', 'year', 'month', 'user', 'accession', 'filename',
+                          'country', 'method']
+        if enable_bot_classification:
+            report_columns += ['is_bot', 'is_hub', 'is_organic']
+
+        df = dd.read_parquet(file, columns=report_columns)
 
         # Filter out rows where 'year' is in skipped_years_list
         if skipped_years_list:
