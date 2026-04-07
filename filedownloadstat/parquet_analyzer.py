@@ -37,6 +37,11 @@ class ParquetAnalyzer(IParquetAnalyzer):
         project_counts = []
         file_counts = []
         yearly_counts = []
+        bot_counts = []
+
+        # Check if bot classification columns exist in the schema
+        schema_names = parquet_file.schema_arrow.names
+        has_bot_columns = all(col in schema_names for col in ['is_bot', 'is_hub', 'is_organic'])
 
         # Single pass: aggregate stats and write all_data JSON simultaneously
         first_batch = True
@@ -55,6 +60,15 @@ class ParquetAnalyzer(IParquetAnalyzer):
                 # Aggregate yearly counts
                 yearly_counts.append(df.groupby(["accession", "year"]).size().reset_index(name="count"))
 
+                # Aggregate bot classification counts per project
+                if has_bot_columns:
+                    bot_batch = df.groupby("accession").agg(
+                        bot_count=("is_bot", "sum"),
+                        hub_count=("is_hub", "sum"),
+                        organic_count=("is_organic", "sum")
+                    ).reset_index()
+                    bot_counts.append(bot_batch)
+
                 # Write all_data JSON incrementally
                 json_str = df.to_json(orient="records")
                 json_str = json_str[1:-1]  # Strip outer [ ]
@@ -72,6 +86,20 @@ class ParquetAnalyzer(IParquetAnalyzer):
         project_df = pd.concat(project_counts, ignore_index=True).groupby("accession")["count"].sum().reset_index()
         file_df = pd.concat(file_counts, ignore_index=True).groupby(["accession", "filename"])["count"].sum().reset_index()
         yearly_df = pd.concat(yearly_counts, ignore_index=True).groupby(["accession", "year"])["count"].sum().reset_index()
+
+        # Merge bot classification counts into project-level data
+        if bot_counts:
+            bot_df = pd.concat(bot_counts, ignore_index=True).groupby("accession").agg(
+                bot_count=("bot_count", "sum"),
+                hub_count=("hub_count", "sum"),
+                organic_count=("organic_count", "sum")
+            ).reset_index()
+            bot_df["bot_count"] = bot_df["bot_count"].astype(int)
+            bot_df["hub_count"] = bot_df["hub_count"].astype(int)
+            bot_df["organic_count"] = bot_df["organic_count"].astype(int)
+            project_df = project_df.merge(bot_df, on="accession", how="left")
+            project_df[["bot_count", "hub_count", "organic_count"]] = project_df[["bot_count", "hub_count", "organic_count"]].fillna(0).astype(int)
+            logger.info("Bot classification counts merged into project-level data", extra={"projects_with_bot_data": len(bot_df)})
 
         # Persist results
         self.persist_project_level_download_counts(project_df, project_level_download_counts)
