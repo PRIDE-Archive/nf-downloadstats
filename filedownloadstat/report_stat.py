@@ -70,6 +70,7 @@ class ReportStat:
         daily_data = df.groupby(['date', 'method']).size().reset_index()
         daily_data.columns = ['date', 'method', 'count']
         daily_data = daily_data.compute()
+        daily_data['date'] = pd.to_datetime(daily_data['date'])
         TrendsStat.download_over_trends(daily_data)
 
     @staticmethod
