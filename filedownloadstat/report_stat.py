@@ -173,9 +173,8 @@ class ReportStat:
         unique_projects = df['accession'].nunique().compute()
         unique_users = df['user'].nunique().compute()
         unique_countries = df['country'].nunique().compute()
-        date_stats = df['date'].agg(['min', 'max']).compute()
-        min_date = pd.to_datetime(date_stats['min']).strftime("%Y-%m-%d")
-        max_date = pd.to_datetime(date_stats['max']).strftime("%Y-%m-%d")
+        min_date = pd.to_datetime(df['date'].min().compute()).strftime("%Y-%m-%d")
+        max_date = pd.to_datetime(df['date'].max().compute()).strftime("%Y-%m-%d")
         date_range = f"{min_date} to {max_date}"
 
         template_path = Path(__file__).resolve().parent.parent / "template" / report_template
