@@ -139,7 +139,7 @@ process merge_parquet_files {
     label 'error_retry_medium'
 
     input:
-    val all_parquet_files  // A comma-separated string of file paths
+    val all_parquet_files  // A comma-separated string of file paths.
 
     output:
     path("output_parquet"), emit: output_parquet
@@ -168,7 +168,13 @@ process classify_bot_downloads {
     path("annotated_parquet"), emit: annotated_parquet
 
     script:
+    // Give DuckDB ~75% of the task memory; the rest covers pandas/Python overhead
+    def duckdb_mem = task.memory ? "${(task.memory.toMega() * 0.75) as long}MB" : '4GB'
     """
+    export DEEPLOGBOT_DUCKDB_MEMORY_LIMIT="${duckdb_mem}"
+    export DEEPLOGBOT_DUCKDB_THREADS=${task.cpus}
+    export DEEPLOGBOT_DUCKDB_MAX_TEMP_SIZE="200GiB"
+
     python3 ${workflow.projectDir}/filedownloadstat/file_download_stat.py  classify_bots \
         --input_parquet ${output_parquet} \
         --output_dir "bot_classification_reports" \
