@@ -21,7 +21,7 @@ completeness:
 report_template: "pride_report.html"
 skipped_years:
   - 2020
-  - 2025
+  - 2026
 resource_base_url: 'https://www.ebi.ac.uk/pride/archive/projects/'
 report_copy_filepath:
 
@@ -32,6 +32,6 @@ bot_contamination: 0.15
 bot_provider: "ebi"
 
 ############# Push to a Database(e.g MongoDB) #############
-disable_db_update: true
+disable_db_update: false
 log_file_batch_size: 1000
 chunk_size: 100000

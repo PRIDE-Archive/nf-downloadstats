@@ -29,3 +29,8 @@ runStat.sh
 params.config
 scripts/run_stat.sh
 scripts/run_stat_local.sh
+
+# Python bytecode #
+###################
+__pycache__/
+*.py[cod]
